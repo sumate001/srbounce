@@ -1,7 +1,6 @@
 venv/
 data/
 results/
-livesignal/
 __pycache__/
 *.pyc
 *.egg-info/
