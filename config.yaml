@@ -1,0 +1,59 @@
+markets:
+  - name: BTCUSDT
+    adapter: ccxt
+    exchange: binance
+    symbol: BTC/USDT
+    timeframe: 4h
+  - name: ETHUSDT
+    adapter: ccxt
+    exchange: binance
+    symbol: ETH/USDT
+    timeframe: 4h
+  - name: SPY
+    adapter: yfinance
+    symbol: SPY
+    timeframe: 1d
+  - name: QQQ
+    adapter: yfinance
+    symbol: QQQ
+    timeframe: 1d
+  - name: NVDA
+    adapter: yfinance
+    symbol: NVDA
+    timeframe: 1d
+  - name: SPY_H1
+    adapter: yfinance
+    symbol: SPY
+    timeframe: 1h
+    start: "2024-08-01"    # yfinance 1h history limited to ~730 days
+  - name: QQQ_H1
+    adapter: yfinance
+    symbol: QQQ
+    timeframe: 1h
+    start: "2024-08-01"
+  - name: NVDA_H1
+    adapter: yfinance
+    symbol: NVDA
+    timeframe: 1h
+    start: "2024-08-01"
+
+data:
+  start: "2020-01-01"
+  cache_dir: data
+
+strategy:
+  swing_lookback: 5          # bars each side to confirm a swing point
+  zone_atr_mult: 0.3         # zone half-width = mult * ATR(14)
+  min_touches: 2             # touches required before a zone is tradeable
+  zone_max_age_bars: 500     # drop zones older than this
+  confirm_patterns: [pin, engulfing]
+  sl_atr_mult: 0.5           # SL beyond zone edge
+  rr_target: 2.0             # TP = rr_target * risk distance
+  time_exit_bars: 40         # exit if neither SL/TP hit
+  trend_filter: ema200       # only trade with D1/base-TF EMA200 direction; set to null to disable
+
+risk:
+  risk_pct: 0.5              # % of equity per trade
+  initial_equity: 10000
+  fee_pct: 0.1              # per side, in percent (crypto taker ~0.05-0.1)
+  slippage_pct: 0.02
