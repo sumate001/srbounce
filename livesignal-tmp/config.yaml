@@ -1,0 +1,41 @@
+# Validated config — see /home/sumate/CLAUDE.md "Validated configuration".
+# Do not change strategy/risk values without re-running the srbounce sweep.
+
+paper: true
+
+markets:
+  ETHUSDT:
+    exchange: binance
+    symbol: ETH/USDT
+    timeframe: 4h
+    mode: trade          # opens real/paper positions
+  BTCUSDT:
+    exchange: binance
+    symbol: BTC/USDT
+    timeframe: 4h
+    mode: signal_only     # detect + notify only, never opens trades
+
+strategy:
+  swing_lookback: 4
+  zone_atr_mult: 0.3
+  min_touches: 3
+  zone_max_age_bars: 500
+  confirm_patterns: [pin, engulfing]
+  sl_atr_mult: 0.5
+  rr_target: 2.0
+  time_exit_bars: 40
+  trend_filter: null      # ETH trades both sides — no EMA200 filter
+
+risk:
+  risk_pct: 0.5
+  initial_equity: 10000
+  fee_pct: 0.1
+  slippage_pct: 0.02
+  daily_loss_limit_pct: 2.0
+
+data:
+  history_bars: 800       # candles fetched each wake to seed ATR + zones
+  poll_after_close_sec: 20 # wait this long after a 4H boundary before fetching
+
+db:
+  path: data/livesignal.db
