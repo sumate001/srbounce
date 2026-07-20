@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "livesignal"
+version = "0.1.0"
+description = "Full-auto S/R bounce trading service (ETH/USDT) with Telegram notifications"
+requires-python = ">=3.11"
+dependencies = [
+    "ccxt",
+    "pandas",
+    "numpy",
+    "pyyaml",
+    "requests",
+    "srbounce",
+]
+
+[project.scripts]
+livesignal = "livesignal.trader:main"
+
+[tool.setuptools]
+packages = ["livesignal"]
