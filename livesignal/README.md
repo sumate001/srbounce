@@ -13,12 +13,13 @@ Config ที่ validate แล้ว (sweep 40 combos + walk-forward): IS PF 1
 ~2 ไม้/เดือน, max DD ~4% — อย่าแก้ `config.yaml` ส่วน strategy/risk
 โดยไม่รัน sweep ใหม่
 
-## ติดตั้ง (dev)
+## ติดตั้ง (dev — จาก repo root)
 
 ```bash
-pip install -e ~/         # srbounce (จากโปรเจกต์ backtester)
-pip install -e .          # livesignal
-cp .env.example .env      # ใส่ TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+pip install -e .                # srbounce
+pip install -e livesignal       # livesignal
+cd livesignal
+cp .env.example .env            # ใส่ TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 python -m livesignal.trader
 ```
 
@@ -36,8 +37,9 @@ entry/SL/TP/exit ภายใน rounding, R-multiple)
 ## Deploy (Docker บน Proxmox)
 
 ```bash
-./build.sh                # vendor srbounce เข้า build context + build image
-docker compose up -d      # restart: unless-stopped, SQLite อยู่ใน ./data
+cd livesignal
+docker compose up -d      # build context = repo root (srbounce ติดตั้งจาก monorepo)
+                          # restart: unless-stopped, SQLite อยู่ใน ./data
 ```
 
 ต้องออก network ไป `api.binance.com` และ `api.telegram.org`

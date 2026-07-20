@@ -1,5 +1,9 @@
 # srbounce — S/R bounce multi-market backtester
 
+> Monorepo: โฟลเดอร์ `livesignal/` คือ live trading service ที่ import กลยุทธ์
+> จากแพ็กเกจ `srbounce` นี้โดยตรง — ดู `livesignal/README.md`
+> แก้อะไรใน `srbounce/` ต้องรัน `python livesignal/tests/replay_parity.py` ให้ผ่านก่อน commit
+
 กลยุทธ์: เข้าเทรดเฉพาะเมื่อราคาแตะโซนแนวรับ/แนวต้าน + มีแท่งยืนยันการกลับตัว (pin bar / engulfing)
 Zone detection เป็นแบบ walk-forward — swing ยืนยันหลังผ่านไป N แท่งเท่านั้น ไม่มี lookahead bias
 

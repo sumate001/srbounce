@@ -1,8 +1,8 @@
 services:
   livesignal:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: livesignal/Dockerfile
     restart: unless-stopped
     env_file: .env
     volumes:
