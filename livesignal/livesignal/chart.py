@@ -38,7 +38,15 @@ def render_zones_png(df: pd.DataFrame, zones: list[dict], market: str,
                                    max(body_hi - body_lo, row["high"] * 1e-5),
                                    facecolor=color, edgecolor="none", zorder=3))
 
-    for z in zones:
+    # lock the y-axis to the candles; zones outside the visible price range
+    # would otherwise stretch the axis and squash the chart into noise
+    y_lo = df["low"].min()
+    y_hi = df["high"].max()
+    pad = (y_hi - y_lo) * 0.06
+    y_lo, y_hi = y_lo - pad, y_hi + pad
+
+    visible = [z for z in zones if z["hi"] >= y_lo and z["lo"] <= y_hi]
+    for z in visible:
         color = SUP if z["kind"] == "support" else RES
         ax.axhspan(z["lo"], z["hi"], color=color, alpha=0.14, zorder=1)
         ax.axhline(z["lo"], color=color, linewidth=0.7, linestyle="--", alpha=0.6, zorder=2)
@@ -51,7 +59,7 @@ def render_zones_png(df: pd.DataFrame, zones: list[dict], market: str,
     ax.text(n + 1, last, f"{last:.0f}", color=INK, fontsize=8, va="center")
 
     ax.set_xlim(-1, n + 14)
-    ax.margins(y=0.08)
+    ax.set_ylim(y_lo, y_hi)
     ax.grid(color=GRID, linewidth=0.5, alpha=0.6)
     ax.tick_params(colors=MUTED, labelsize=8)
     for spine in ax.spines.values():

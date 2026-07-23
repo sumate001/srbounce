@@ -234,8 +234,12 @@ class TraderService:
             from . import chart
             m = self.cfg.markets[market]
             df = self.brokers[market].fetch_ohlcv(m.symbol, m.timeframe, 100)
-            png = chart.render_zones_png(df, zones, market, m.timeframe)
-            caption = notify.fmt_zones(market, zones)
+            pad = (df["high"].max() - df["low"].min()) * 0.06
+            visible = [z for z in zones
+                       if z["hi"] >= df["low"].min() - pad
+                       and z["lo"] <= df["high"].max() + pad]
+            png = chart.render_zones_png(df, visible, market, m.timeframe)
+            caption = notify.fmt_zones(market, visible)
             return self.tg.send_photo(png, caption)
         except Exception:
             log.exception("zones chart failed, falling back to text")
