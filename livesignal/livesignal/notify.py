@@ -1,10 +1,11 @@
-"""Telegram: outbound notifications (plain text, no buttons) + long-poll command
-handling for /status /zones /pause /resume.
+"""Telegram: outbound notifications (HTML-formatted cards, no buttons) +
+long-poll command handling for /status /zones /pause /resume.
 
 Raw HTTP to the Bot API via requests — no framework needed for this scope.
 """
 from __future__ import annotations
 
+import html
 import logging
 import time
 
@@ -36,6 +37,10 @@ class Telegram:
 
     def send(self, text: str) -> None:
         for attempt in range(3):
+            if self._call("sendMessage", chat_id=self.chat_id, text=text,
+                          parse_mode="HTML") is not None:
+                return
+            # HTML parse errors would retry pointlessly — fall back to plain
             if self._call("sendMessage", chat_id=self.chat_id, text=text) is not None:
                 return
             time.sleep(2 ** attempt)
@@ -59,55 +64,85 @@ class Telegram:
 
 
 # ---- message formatters ----------------------------------------------------
+# Telegram has no real "cards"; the closest look is HTML bold headers, emoji
+# and <pre> blocks whose monospace columns line up.
+
+RULE = "──────────────"
+
+
+def esc(s) -> str:
+    return html.escape(str(s))
+
 
 def fmt_trade_opened(market: str, direction: str, entry: float, sl: float, tp: float,
                       risk_pct: float, size: float, zone_center: float, pattern: str,
                       paper: bool) -> str:
-    tag = "PAPER" if paper else "LIVE"
-    return (f"[{tag}] Trade opened — {market} {direction.upper()}\n"
-            f"entry {entry:.2f}  SL {sl:.2f}  TP {tp:.2f}\n"
-            f"size {size:.6f}  risk {risk_pct}%\n"
-            f"zone {zone_center:.2f}  pattern {pattern}")
+    tag = "🧪 PAPER" if paper else "🔴 LIVE"
+    arrow = "📈 LONG" if direction == "long" else "📉 SHORT"
+    return (f"<b>{tag} · Trade opened</b>\n"
+            f"<b>{esc(market)}</b>  {arrow}\n"
+            f"{RULE}\n"
+            f"<pre>entry  {entry:>10.2f}\n"
+            f"SL     {sl:>10.2f}\n"
+            f"TP     {tp:>10.2f}\n"
+            f"size   {size:>10.6f}\n"
+            f"risk   {risk_pct:>9}%</pre>\n"
+            f"zone <code>{zone_center:.2f}</code> · pattern <b>{esc(pattern)}</b>")
 
 
 def fmt_trade_closed(market: str, direction: str, exit_reason: str, exit_price: float,
                       pnl: float, r_multiple: float, equity: float, paper: bool) -> str:
-    tag = "PAPER" if paper else "LIVE"
-    return (f"[{tag}] Trade closed — {market} {direction.upper()} ({exit_reason})\n"
-            f"exit {exit_price:.2f}  P/L {pnl:+.2f} USDT  ({r_multiple:+.2f}R)\n"
-            f"equity {equity:.2f}")
+    tag = "🧪 PAPER" if paper else "🔴 LIVE"
+    face = "✅" if pnl >= 0 else "❌"
+    reason = {"sl": "stop loss", "tp": "take profit", "time": "time exit"}.get(exit_reason, exit_reason)
+    return (f"<b>{tag} · Trade closed {face}</b>\n"
+            f"<b>{esc(market)}</b>  {direction.upper()} · {esc(reason)}\n"
+            f"{RULE}\n"
+            f"<pre>exit    {exit_price:>10.2f}\n"
+            f"P/L     {pnl:>+10.2f} USDT\n"
+            f"R       {r_multiple:>+10.2f}\n"
+            f"equity  {equity:>10.2f}</pre>")
 
 
 def fmt_btc_signal(direction: str, entry_ref: float, sl: float, tp: float,
                     zone_center: float, pattern: str) -> str:
-    return ("[SIGNAL-ONLY] BTCUSDT — observational, no trade opened\n"
-            f"would enter {direction.upper()} ~{entry_ref:.2f}\n"
-            f"SL {sl:.2f}  TP {tp:.2f}\n"
-            f"zone {zone_center:.2f}  pattern {pattern}")
+    return ("<b>👀 SIGNAL-ONLY · BTCUSDT</b>\n"
+            "<i>observational — no trade opened</i>\n"
+            f"{RULE}\n"
+            f"<pre>side   {direction.upper():>10}\n"
+            f"entry ~{entry_ref:>10.2f}\n"
+            f"SL     {sl:>10.2f}\n"
+            f"TP     {tp:>10.2f}</pre>\n"
+            f"zone <code>{zone_center:.2f}</code> · pattern <b>{esc(pattern)}</b>")
 
 
 def fmt_status(equity: float, open_trade: dict | None, day_pnl: float, paused: bool,
                 paper: bool) -> str:
-    lines = [f"mode: {'paper' if paper else 'LIVE'}",
-             f"equity: {equity:.2f}",
-             f"today P/L: {day_pnl:+.2f}",
-             f"paused: {'yes' if paused else 'no'}"]
+    mode = "🧪 paper" if paper else "🔴 LIVE"
+    pause = "⏸ paused" if paused else "▶️ running"
+    lines = [f"<b>📊 Status</b>  ·  {mode}  ·  {pause}",
+             RULE,
+             f"<pre>equity     {equity:>10.2f}\n"
+             f"today P/L  {day_pnl:>+10.2f}</pre>"]
     if open_trade:
-        lines.append(f"open: {open_trade['market']} {open_trade['direction']} "
-                     f"@ {open_trade['entry']:.2f} SL {open_trade['sl']:.2f} "
-                     f"TP {open_trade['tp']:.2f}")
+        lines.append(f"open: <b>{esc(open_trade['market'])}</b> {open_trade['direction']} "
+                     f"@ <code>{open_trade['entry']:.2f}</code> "
+                     f"SL <code>{open_trade['sl']:.2f}</code> "
+                     f"TP <code>{open_trade['tp']:.2f}</code>")
     else:
-        lines.append("open: none")
+        lines.append("open: <i>none</i>")
     return "\n".join(lines)
 
 
 def fmt_zones(market: str, zones: list[dict]) -> str:
     if not zones:
-        return f"{market}: no active zones"
-    lines = [f"{market} active zones:"]
+        return f"<b>🗺 {esc(market)}</b>: no active zones"
+    lines = [f"<b>🗺 {esc(market)} · active zones</b>", RULE, "<pre>"]
     for z in sorted(zones, key=lambda z: z["center"], reverse=True):
-        lines.append(f"  {z['kind'][:3]}  {z['lo']:.2f}–{z['hi']:.2f}  "
-                     f"(center {z['center']:.2f}, {z['touches']} touches)")
+        icon = "🟥" if z["kind"] == "resistance" else "🟩"
+        lines.append(f"{icon} {z['kind'][:3]}  {z['lo']:>9.2f}–{z['hi']:<9.2f} "
+                     f"x{z['touches']}")
+    lines.append("</pre>")
     return "\n".join(lines)
 
 
@@ -115,14 +150,16 @@ def fmt_weekly_summary(trades: list[dict], equity: float, open_trade: dict | Non
     n = len(trades)
     wins = sum(1 for t in trades if (t["pnl"] or 0) > 0)
     net = sum(t["pnl"] or 0 for t in trades)
-    lines = ["Weekly summary",
-             f"trades closed: {n}",
-             f"win rate: {wins / n * 100:.0f}%" if n else "win rate: –",
-             f"net P/L: {net:+.2f}",
-             f"equity: {equity:.2f}"]
+    wr = f"{wins / n * 100:.0f}%" if n else "–"
+    lines = ["<b>🗓 Weekly summary</b>",
+             RULE,
+             f"<pre>closed    {n:>10}\n"
+             f"win rate  {wr:>10}\n"
+             f"net P/L   {net:>+10.2f}\n"
+             f"equity    {equity:>10.2f}</pre>"]
     if open_trade:
-        lines.append(f"open: {open_trade['market']} {open_trade['direction']} "
-                     f"@ {open_trade['entry']:.2f}")
+        lines.append(f"open: <b>{esc(open_trade['market'])}</b> {open_trade['direction']} "
+                     f"@ <code>{open_trade['entry']:.2f}</code>")
     else:
-        lines.append("open: none")
+        lines.append("open: <i>none</i>")
     return "\n".join(lines)
