@@ -46,6 +46,20 @@ class Telegram:
             time.sleep(2 ** attempt)
         log.error("telegram send gave up: %r", text[:200])
 
+    def send_photo(self, png: bytes, caption: str = "") -> bool:
+        try:
+            r = requests.post(API.format(token=self.token, method="sendPhoto"),
+                              data={"chat_id": self.chat_id, "caption": caption,
+                                    "parse_mode": "HTML"},
+                              files={"photo": ("zones.png", png, "image/png")},
+                              timeout=60)
+            if r.json().get("ok"):
+                return True
+            log.error("telegram sendPhoto failed: %s", r.text[:300])
+        except Exception:
+            log.exception("telegram sendPhoto error")
+        return False
+
     def poll_commands(self) -> list[str]:
         """Fetch pending updates, return commands (e.g. '/pause') from our chat."""
         result = self._call("getUpdates", offset=self._offset, timeout=0)

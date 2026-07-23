@@ -221,10 +221,25 @@ class TraderService:
             elif cmd == "/zones":
                 zones = self._zones_cache.get("ETHUSDT") \
                     or store.latest_zones_snapshot(self.conn, "ETHUSDT")
-                self.tg.send(notify.fmt_zones("ETHUSDT", zones))
+                if not self._send_zones_chart("ETHUSDT", zones):
+                    self.tg.send(notify.fmt_zones("ETHUSDT", zones))
             elif cmd.startswith("/"):
                 self.tg.send(f"Unknown command: {notify.esc(cmd)}\n"
                              "Available: /status /zones /pause /resume")
+
+    def _send_zones_chart(self, market: str, zones: list[dict]) -> bool:
+        if not zones:
+            return False
+        try:
+            from . import chart
+            m = self.cfg.markets[market]
+            df = self.brokers[market].fetch_ohlcv(m.symbol, m.timeframe, 100)
+            png = chart.render_zones_png(df, zones, market, m.timeframe)
+            caption = notify.fmt_zones(market, zones)
+            return self.tg.send_photo(png, caption)
+        except Exception:
+            log.exception("zones chart failed, falling back to text")
+            return False
 
     def maybe_weekly_summary(self, now: datetime) -> None:
         # Monday after the first candle close of the UTC day
