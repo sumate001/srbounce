@@ -219,27 +219,31 @@ class TraderService:
                                                st["day_realised_pnl"],
                                                bool(st["paused"]), self.cfg.paper))
             elif cmd == "/zones":
-                zones = self._zones_cache.get("ETHUSDT") \
-                    or store.latest_zones_snapshot(self.conn, "ETHUSDT")
-                if not self._send_zones_chart("ETHUSDT", zones):
+                if not self._send_zones_chart("ETHUSDT"):
+                    zones = self._zones_cache.get("ETHUSDT") \
+                        or store.latest_zones_snapshot(self.conn, "ETHUSDT")
                     self.tg.send(notify.fmt_zones("ETHUSDT", zones))
             elif cmd.startswith("/"):
                 self.tg.send(f"Unknown command: {notify.esc(cmd)}\n"
                              "Available: /status /zones /pause /resume")
 
-    def _send_zones_chart(self, market: str, zones: list[dict]) -> bool:
-        if not zones:
-            return False
+    def _send_zones_chart(self, market: str) -> bool:
+        """Chart only the zones the bot is stalking (nearest support +
+        resistance), windowed from their first touch so 1-2-3 is visible."""
         try:
             from . import chart
             m = self.cfg.markets[market]
-            df = self.brokers[market].fetch_ohlcv(m.symbol, m.timeframe, 100)
-            pad = (df["high"].max() - df["low"].min()) * 0.06
-            visible = [z for z in zones
-                       if z["hi"] >= df["low"].min() - pad
-                       and z["lo"] <= df["high"].max() + pad]
-            png = chart.render_zones_png(df, visible, market, m.timeframe)
-            caption = notify.fmt_zones(market, visible)
+            df_raw = self.brokers[market].fetch_ohlcv(m.symbol, m.timeframe,
+                                                      self.cfg.data["history_bars"])
+            df = closed_candles(df_raw, m.timeframe, datetime.now(timezone.utc))
+            zt = seed_zone_tracker(df, self.cfg.strategy)
+            picked = chart.pick_nearest_zones(zt.active(), df["close"].iloc[-1])
+            if not picked:
+                return False
+            png = chart.render_zones_png(df, picked, market, m.timeframe)
+            caption = notify.fmt_zones(market, [
+                {"center": z.center, "lo": z.lo, "hi": z.hi,
+                 "kind": z.kind, "touches": z.touches} for z in picked])
             return self.tg.send_photo(png, caption)
         except Exception:
             log.exception("zones chart failed, falling back to text")
