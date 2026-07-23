@@ -222,6 +222,8 @@ class TraderService:
                 zones = self._zones_cache.get("ETHUSDT") \
                     or store.latest_zones_snapshot(self.conn, "ETHUSDT")
                 self.tg.send(notify.fmt_zones("ETHUSDT", zones))
+            elif cmd.startswith("/"):
+                self.tg.send(f"Unknown command: {cmd}\nAvailable: /status /zones /pause /resume")
 
     def maybe_weekly_summary(self, now: datetime) -> None:
         # Monday after the first candle close of the UTC day
