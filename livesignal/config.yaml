@@ -24,7 +24,8 @@ strategy:
   sl_atr_mult: 0.5
   rr_target: 2.0
   time_exit_bars: 40
-  trend_filter: null      # ETH trades both sides — no EMA200 filter
+  trend_filter: ema200    # validated 2026-07-24 sweep: IS PF 1.65 / OOS 1.76 (~2 trades/mo)
+                          # the null ("both sides") variant backtests IS 0.95 / OOS 1.53 — do not use
 
 risk:
   risk_pct: 0.5
