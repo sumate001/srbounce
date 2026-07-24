@@ -192,13 +192,21 @@ class TraderService:
 
         store.close_trade(self.conn, row["id"], bar_time.isoformat(), ex.price,
                           reason, ex.pnl, ex.r_multiple)
-        store.update_state(self.conn, equity=ex.equity_after)
+        # bank-the-profit scheme: pot is capped at initial_equity, anything
+        # above it moves to `banked` and is never risked again
+        st = store.get_state(self.conn)
+        cap = self.cfg.risk["initial_equity"]
+        new_equity, banked = ex.equity_after, st.get("banked", 0.0)
+        if new_equity > cap:
+            banked += new_equity - cap
+            new_equity = cap
+        store.update_state(self.conn, equity=new_equity, banked=banked)
         self.risk.record_realised_pnl(ex.pnl)
         if self.risk.daily_limit_tripped():
             self.tg.send("Daily loss limit tripped — no new entries until next UTC day.")
         self.tg.send(notify.fmt_trade_closed(
             m.name, row["direction"], reason, ex.price, ex.pnl, ex.r_multiple,
-            ex.equity_after, bool(row["paper"])))
+            new_equity, bool(row["paper"]), banked))
 
     # ---- telegram commands --------------------------------------------------
 
@@ -217,7 +225,8 @@ class TraderService:
                     open_trade = open_trade or store.get_open_trade(self.conn, name)
                 self.tg.send(notify.fmt_status(st["equity"], open_trade,
                                                st["day_realised_pnl"],
-                                               bool(st["paused"]), self.cfg.paper))
+                                               bool(st["paused"]), self.cfg.paper,
+                                               st.get("banked", 0.0)))
             elif cmd == "/zones":
                 if not self._send_zones_chart("ETHUSDT"):
                     zones = self._zones_cache.get("ETHUSDT") \

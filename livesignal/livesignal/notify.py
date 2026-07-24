@@ -105,7 +105,8 @@ def fmt_trade_opened(market: str, direction: str, entry: float, sl: float, tp: f
 
 
 def fmt_trade_closed(market: str, direction: str, exit_reason: str, exit_price: float,
-                      pnl: float, r_multiple: float, equity: float, paper: bool) -> str:
+                      pnl: float, r_multiple: float, equity: float, paper: bool,
+                      banked: float = 0.0) -> str:
     tag = "🧪 PAPER" if paper else "🔴 LIVE"
     face = "✅" if pnl >= 0 else "❌"
     reason = {"sl": "stop loss", "tp": "take profit", "time": "time exit"}.get(exit_reason, exit_reason)
@@ -115,7 +116,8 @@ def fmt_trade_closed(market: str, direction: str, exit_reason: str, exit_price: 
             f"<pre>exit    {exit_price:>10.2f}\n"
             f"P/L     {pnl:>+10.2f} USDT\n"
             f"R       {r_multiple:>+10.2f}\n"
-            f"equity  {equity:>10.2f}</pre>")
+            f"pot     {equity:>10.2f}\n"
+            f"banked  {banked:>10.2f}</pre>")
 
 
 def fmt_btc_signal(direction: str, entry_ref: float, sl: float, tp: float,
@@ -131,12 +133,13 @@ def fmt_btc_signal(direction: str, entry_ref: float, sl: float, tp: float,
 
 
 def fmt_status(equity: float, open_trade: dict | None, day_pnl: float, paused: bool,
-                paper: bool) -> str:
+                paper: bool, banked: float = 0.0) -> str:
     mode = "🧪 paper" if paper else "🔴 LIVE"
     pause = "⏸ paused" if paused else "▶️ running"
     lines = [f"<b>📊 Status</b>  ·  {mode}  ·  {pause}",
              RULE,
-             f"<pre>equity     {equity:>10.2f}\n"
+             f"<pre>pot        {equity:>10.2f}\n"
+             f"banked     {banked:>10.2f}\n"
              f"today P/L  {day_pnl:>+10.2f}</pre>"]
     if open_trade:
         lines.append(f"open: <b>{esc(open_trade['market'])}</b> {open_trade['direction']} "

@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS state (
     equity REAL NOT NULL,
     paused INTEGER NOT NULL DEFAULT 0,
     day_key TEXT NOT NULL,
-    day_realised_pnl REAL NOT NULL DEFAULT 0
+    day_realised_pnl REAL NOT NULL DEFAULT 0,
+    banked REAL NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS zones_snapshot (
@@ -57,6 +58,10 @@ def connect(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    try:  # migrate pre-banked databases
+        conn.execute("ALTER TABLE state ADD COLUMN banked REAL NOT NULL DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
     return conn
 

@@ -28,11 +28,15 @@ strategy:
                           # the null ("both sides") variant backtests IS 0.95 / OOS 1.53 — do not use
 
 risk:
-  risk_pct: 0.5
+  risk_pct: 11              # half-Kelly (full Kelly ≈ 22% from the 2026-07 sweep's
+                            # 146-trade R distribution). Paired with the bank-profit
+                            # scheme: pot is capped at initial_equity, profits above
+                            # the cap move to `banked` and are never risked again.
   initial_equity: 1000
   fee_pct: 0.1
   slippage_pct: 0.02
-  daily_loss_limit_pct: 2.0
+  daily_loss_limit_pct: 12  # one full SL loss (11%) trips it — blocks further
+                            # entries the same UTC day, open trades still managed
 
 data:
   history_bars: 800       # candles fetched each wake to seed ATR + zones
